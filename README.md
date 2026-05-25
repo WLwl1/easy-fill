@@ -1,19 +1,11 @@
 # Easy Fill
 
 <p align="center">
-  <strong>中文</strong>
+  <strong>中文</strong> · <strong>English</strong>
 </p>
-
-<p align="center">
-  <a href="https://github.com/WLwl1/easy-fill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/WLwl1/easy-fill/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
-  <a href="#安装"><img alt="Chrome and Edge" src="https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-blue"></a>
-</p>
-
-![Easy Fill 使用截图](assets/demo-screenshot.png)
 
 <details>
-<summary><strong>English version</strong></summary>
+<summary><strong>Click to view English version</strong></summary>
 
 ## Easy Fill
 
@@ -104,6 +96,14 @@ See [ROADMAP.md](ROADMAP.md).
 MIT. See [LICENSE](LICENSE).
 
 </details>
+
+<p align="center">
+  <a href="https://github.com/WLwl1/easy-fill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/WLwl1/easy-fill/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+  <a href="#安装"><img alt="Chrome and Edge" src="https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-blue"></a>
+</p>
+
+![Easy Fill 使用截图](assets/demo-screenshot.png)
 
 Easy Fill 是一个面向中文申请表的隐私优先浏览器扩展。它帮学生和求职者把姓名、电话、邮箱、学校、学院、专业、GPA、排名等高频资料保存在本地，在实习申请、保研/考研材料、奖学金系统、校园门户里自动识别字段并一键填写。
 
