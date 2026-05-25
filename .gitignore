@@ -1,0 +1,6 @@
+build
+.plasmo
+node_modules
+coverage
+dist
+*.log
