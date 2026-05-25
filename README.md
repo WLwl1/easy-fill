@@ -1,7 +1,7 @@
 # Easy Fill
 
 <p align="center">
-  <a href="#中文">中文</a> · <a href="#english">English</a>
+  <strong>中文</strong> · <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
@@ -10,14 +10,11 @@
   <a href="#安装"><img alt="Chrome and Edge" src="https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-blue"></a>
 </p>
 
-![Easy Fill demo screenshot](assets/demo-screenshot.png)
-
-<a id="中文"></a>
-
-## 中文
+![Easy Fill 使用截图](assets/demo-screenshot.png)
 
 Easy Fill 是一个面向中文申请表的隐私优先浏览器扩展。它帮学生和求职者把姓名、电话、邮箱、学校、学院、专业、GPA、排名等高频资料保存在本地，在实习申请、保研/考研材料、奖学金系统、校园门户里自动识别字段并一键填写。
 
+核心卖点很直接：中文申请表 + 本地隐私 + 无 AI / 无后端。
 
 ## 适合谁
 
@@ -111,90 +108,6 @@ docs/            demo pages and project documentation assets
 
 更多计划见 [ROADMAP.md](ROADMAP.md)，贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## English
-
-Easy Fill is a privacy-first browser extension for repetitive Chinese application forms. It helps students and job seekers save profile information locally, detect web form fields, match them with deterministic heuristics, and fill them with one click.
-
-The core value is simple: Chinese application forms, local privacy, no AI dependency, and no backend.
-
-## Who It Is For
-
-- Students filling internship, scholarship, graduate-school, recommendation, or campus portal forms
-- Users dealing with Chinese labels, dynamic modals, date pickers, and custom dropdowns
-- People who want autofill without uploading personal data to a cloud service
-- Developers interested in browser extensions, form understanding, and privacy-first tooling
-
-## Highlights
-
-- Local encrypted profile vault protected by a master password
-- No account system, backend, telemetry, or AI API calls
-- Works with dynamic pages, modals, and same-origin iframes
-- Supports text fields, native selects, custom dropdowns, and date-like inputs
-- Explainable rule-based matching instead of opaque model decisions
-- Ignores high-risk fields such as passwords, verification codes, bank cards, CVV, and payment fields
-
-## Install
-
-| Channel | Status | Link |
-| --- | --- | --- |
-| Chrome Web Store | Preparing release | Replace with store link after publishing |
-| Microsoft Edge Add-ons | Preparing release | Replace with store link after publishing |
-| Local development install | Available | See steps below |
-
-Local install:
-
-```bash
-npm install
-npm run build
-```
-
-Open `chrome://extensions` or `edge://extensions`, enable Developer Mode, click "Load unpacked", and choose `build/chrome-mv3-prod`.
-
-## Demo
-
-- [Open the demo form](docs/demo.html)
-- Save a test profile in the extension options page
-- Open the Easy Fill popup on the demo page to scan and fill Chinese application fields
-
-The demo page is static and does not collect data.
-
-## Development
-
-```bash
-npm install
-npm run dev
-```
-
-Useful commands:
-
-```bash
-npm run typecheck
-npm test
-npm run build
-```
-
-## How Matching Works
-
-Easy Fill does not use a large language model. The current matching flow is:
-
-1. Scan `input`, `textarea`, and `select` fields
-2. Extract label text, placeholder, name, id, aria-label, nearby text, and section context
-3. Compare those signals with profile field aliases using weighted heuristics
-4. Fill high-confidence matches and keep uncertain matches confirmable
-
-This keeps the extension fast, local, predictable, and cheap to run.
-
-## Tech Stack
-
-- TypeScript
-- React
-- Plasmo
-- Vitest
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md).
-
-## License
+## 许可证
 
 MIT. See [LICENSE](LICENSE).
