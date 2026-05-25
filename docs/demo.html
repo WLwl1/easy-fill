@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Easy Fill Demo Form</title>
+    <style>
+      :root {
+        color: #172033;
+        background: #f4f7fb;
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 32px 20px 56px;
+      }
+
+      header {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 5vw, 46px);
+        line-height: 1.08;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      p {
+        margin: 0;
+        color: #526071;
+        line-height: 1.7;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 7px;
+        padding: 10px 14px;
+        background: #14213d;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 650;
+      }
+
+      button.secondary {
+        background: #e6ecf5;
+        color: #172033;
+      }
+
+      form {
+        display: grid;
+        gap: 18px;
+      }
+
+      section {
+        background: #fff;
+        border: 1px solid #dce5f0;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid #bdc9d9;
+        border-radius: 7px;
+        padding: 11px 12px;
+        color: #172033;
+        background: #fff;
+        font: inherit;
+        font-weight: 450;
+      }
+
+      textarea {
+        min-height: 112px;
+        resize: vertical;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      .note {
+        border-left: 4px solid #2f80ed;
+        padding: 12px 14px;
+        background: #edf5ff;
+        color: #334155;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      @media (max-width: 840px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 580px) {
+        main {
+          padding: 24px 14px 40px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>中文申请表 Demo</h1>
+        <p>用于测试 Easy Fill 的字段扫描、中文别名匹配、日期输入、下拉框和长文本填写。页面完全静态，不会提交或收集任何信息。</p>
+        <div class="toolbar" aria-label="Demo actions">
+          <button type="button" id="sample">填入示例数据</button>
+          <button type="button" class="secondary" id="clear">清空表单</button>
+        </div>
+      </header>
+
+      <form id="application-form">
+        <section>
+          <h2>基本信息</h2>
+          <div class="grid">
+            <label>
+              姓名
+              <input name="applicant_name" placeholder="请输入真实姓名" autocomplete="name">
+            </label>
+            <label>
+              联系电话
+              <input type="tel" name="mobile" placeholder="请输入手机号" autocomplete="tel">
+            </label>
+            <label>
+              电子邮箱
+              <input type="email" name="email" placeholder="请输入常用邮箱" autocomplete="email">
+            </label>
+            <label>
+              微信号
+              <input name="wechat" placeholder="请输入微信号">
+            </label>
+            <label>
+              出生日期
+              <input type="date" name="birthday" aria-label="出生日期">
+            </label>
+            <label>
+              性别
+              <select name="gender">
+                <option value="">请选择</option>
+                <option>男</option>
+                <option>女</option>
+                <option>其他</option>
+              </select>
+            </label>
+            <label class="full">
+              通讯地址
+              <input name="address" placeholder="省 / 市 / 区 / 详细地址" autocomplete="street-address">
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h2>教育经历</h2>
+          <div class="grid">
+            <label>
+              本科院校
+              <input name="undergraduate_school" placeholder="请输入学校名称">
+            </label>
+            <label>
+              学院 / 院系
+              <input name="department" placeholder="例如：计算机学院">
+            </label>
+            <label>
+              专业名称
+              <input name="major" placeholder="例如：软件工程">
+            </label>
+            <label>
+              学历 / 学位
+              <select name="degree">
+                <option value="">请选择</option>
+                <option>本科</option>
+                <option>硕士</option>
+                <option>博士</option>
+              </select>
+            </label>
+            <label>
+              年级
+              <input name="grade" placeholder="例如：2023级">
+            </label>
+            <label>
+              学号
+              <input name="student_id" placeholder="请输入学号">
+            </label>
+            <label>
+              GPA / 绩点
+              <input name="gpa" placeholder="例如：3.80 / 4.00">
+            </label>
+            <label>
+              专业排名
+              <input name="ranking" placeholder="例如：5 / 120">
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h2>项目与链接</h2>
+          <div class="grid">
+            <label>
+              GitHub
+              <input type="url" name="github" placeholder="https://github.com/yourname">
+            </label>
+            <label>
+              个人主页
+              <input type="url" name="homepage" placeholder="https://example.com">
+            </label>
+            <label>
+              LinkedIn
+              <input type="url" name="linkedin" placeholder="https://linkedin.com/in/yourname">
+            </label>
+            <label class="full">
+              研究方向 / 申请说明
+              <textarea name="research_interest" placeholder="请简要说明研究兴趣、项目经历或申请理由"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h2>安全字段</h2>
+          <div class="grid">
+            <label>
+              登录密码
+              <input type="password" name="password" placeholder="Easy Fill 应跳过该字段">
+            </label>
+            <label>
+              验证码
+              <input name="captcha" placeholder="Easy Fill 应跳过该字段">
+            </label>
+            <label>
+              支付信息
+              <input name="payment_card" placeholder="Easy Fill 应跳过该字段">
+            </label>
+          </div>
+          <p class="note" style="margin-top: 14px;">这些字段用于验证扩展会跳过高风险输入，不建议填写真实敏感信息。</p>
+        </section>
+      </form>
+    </main>
+
+    <script>
+      const sampleData = {
+        applicant_name: "张三",
+        mobile: "13800000000",
+        email: "student@example.com",
+        wechat: "easyfill_demo",
+        birthday: "2002-09-01",
+        gender: "男",
+        address: "北京市海淀区中关村大街 1 号",
+        undergraduate_school: "清华大学",
+        department: "计算机学院",
+        major: "软件工程",
+        degree: "本科",
+        grade: "2021级",
+        student_id: "2021000001",
+        gpa: "3.90 / 4.00",
+        ranking: "5 / 120",
+        github: "https://github.com/example",
+        homepage: "https://example.com",
+        linkedin: "https://linkedin.com/in/example",
+        research_interest: "系统安全、浏览器扩展与隐私保护工具。"
+      }
+
+      const form = document.querySelector("#application-form")
+
+      document.querySelector("#sample").addEventListener("click", () => {
+        Object.entries(sampleData).forEach(([name, value]) => {
+          const field = form.elements.namedItem(name)
+          if (field) {
+            field.value = value
+            field.dispatchEvent(new Event("input", { bubbles: true }))
+            field.dispatchEvent(new Event("change", { bubbles: true }))
+          }
+        })
+      })
+
+      document.querySelector("#clear").addEventListener("click", () => {
+        form.reset()
+      })
+    </script>
+  </body>
+</html>

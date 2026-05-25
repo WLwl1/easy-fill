@@ -7,8 +7,13 @@
   "keywords": [
     "browser-extension",
     "form-autofill",
+    "autofill",
     "chrome-extension",
     "edge-extension",
+    "plasmo",
+    "typescript",
+    "privacy-first",
+    "chinese-forms",
     "china",
     "internship",
     "graduate-school",
@@ -18,8 +23,17 @@
     "dev": "plasmo dev",
     "build": "plasmo build",
     "package": "plasmo package",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WLwl1/easy-fill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WLwl1/easy-fill/issues"
+  },
+  "homepage": "https://github.com/WLwl1/easy-fill#readme",
   "dependencies": {
     "plasmo": "^0.90.5",
     "react": "^18.3.1",
