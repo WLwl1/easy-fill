@@ -50,6 +50,19 @@ const findLabelText = (element: HTMLElement) => {
     }
   }
 
+  const labelledBy = element.getAttribute("aria-labelledby")
+  if (labelledBy) {
+    const text = labelledBy
+      .split(/\s+/)
+      .map((id) => documentNode.getElementById(id)?.textContent?.trim())
+      .filter(Boolean)
+      .join(" ")
+
+    if (text) {
+      return text
+    }
+  }
+
   const wrappingLabel = element.closest("label")
   if (wrappingLabel?.textContent?.trim()) {
     return wrappingLabel.textContent.trim()

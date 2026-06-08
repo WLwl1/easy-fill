@@ -1,8 +1,8 @@
 export const normalizeText = (value?: string) =>
   (value ?? "")
-    .toLowerCase()
-    .replace(/[_\-/:]+/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_\-/:]+/g, " ")
+    .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim()

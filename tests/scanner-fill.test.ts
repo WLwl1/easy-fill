@@ -17,6 +17,19 @@ describe("scanner and fill", () => {
     expect(fields[0].labelText).toBe("姓名")
   })
 
+  it("finds inputs labelled by aria-labelledby", () => {
+    document.body.innerHTML = `
+      <form>
+        <span id="email-label">电子邮箱</span>
+        <input aria-labelledby="email-label" />
+      </form>
+    `
+
+    const fields = scanFields(document)
+    expect(fields).toHaveLength(1)
+    expect(fields[0].labelText).toBe("电子邮箱")
+  })
+
   it("fills input values and dispatches events", async () => {
     document.body.innerHTML = `
       <label for="school">学校</label>

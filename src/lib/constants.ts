@@ -41,12 +41,14 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     path: "basic.birthDate",
     label: "出生日期",
     aliases: ["出生日期", "生日", "出生年月", "birth date", "birthday"],
-    typeHints: ["date"]
+    typeHints: ["date"],
+    optionHints: ["年", "月", "日"]
   },
   {
     path: "basic.gender",
     label: "性别",
-    aliases: ["性别", "gender", "sex"]
+    aliases: ["性别", "gender", "sex"],
+    optionHints: ["男", "女", "其他", "保密"]
   },
   {
     path: "basic.address",
@@ -74,7 +76,8 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     path: "education.degree",
     label: "学历",
-    aliases: ["学历", "学位", "degree", "education level"]
+    aliases: ["学历", "学位", "degree", "education level"],
+    optionHints: ["本科", "硕士", "博士", "专科", "高中"]
   },
   {
     path: "education.grade",

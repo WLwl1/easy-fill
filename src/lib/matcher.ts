@@ -52,6 +52,16 @@ const scoreDefinition = (field: FieldCandidate, definition: FieldDefinition) => 
     reason.push(`输入类型匹配 ${field.inputType}`)
   }
 
+  const optionHintHits =
+    definition.optionHints?.filter((hint) =>
+      field.options?.some((option) => includesAlias(option, hint))
+    ) ?? []
+
+  if (optionHintHits.length > 0) {
+    score += Math.min(24, optionHintHits.length * 8)
+    reason.push(`选项包含 ${optionHintHits.slice(0, 3).join("、")}`)
+  }
+
   if (
     definition.sectionHints?.some(
       (hint) =>

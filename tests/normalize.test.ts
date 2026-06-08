@@ -3,6 +3,7 @@ import { includesAlias, normalizeText, tokenize } from "../src/lib/normalize"
 describe("normalize helpers", () => {
   it("normalizes camelCase and separators", () => {
     expect(normalizeText("student_ID-Number")).toBe("student id number")
+    expect(normalizeText("birthDate")).toBe("birth date")
   })
 
   it("tokenizes multilingual text", () => {

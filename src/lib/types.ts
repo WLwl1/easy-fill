@@ -96,4 +96,5 @@ export type FieldDefinition = {
   highRisk?: boolean
   typeHints?: string[]
   sectionHints?: string[]
+  optionHints?: string[]
 }

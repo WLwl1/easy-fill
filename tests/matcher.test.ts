@@ -64,4 +64,25 @@ describe("field matching", () => {
     expect(matches[0].matchedProfilePath).toBe("custom:research_interest")
     expect(matches[0].valuePreview).toBe("系统安全")
   })
+
+  it("uses select options as low-confidence hints", () => {
+    const fields: FieldCandidate[] = [
+      {
+        id: "field-degree",
+        tagName: "select",
+        options: ["请选择", "本科", "硕士", "博士"]
+      }
+    ]
+
+    const matches = matchFields(fields, {
+      ...profile,
+      education: {
+        ...profile.education,
+        degree: "硕士"
+      }
+    })
+
+    expect(matches[0].matchedProfilePath).toBe("education.degree")
+    expect(matches[0].requiresConfirmation).toBe(true)
+  })
 })
