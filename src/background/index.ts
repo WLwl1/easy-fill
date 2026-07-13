@@ -1,18 +1,32 @@
 import {
+  getAiRecognitionSettings,
   changePassword,
   clearVault,
   getUnlockedProfile,
   getVaultStatus,
   lockVault,
+  saveAiRecognitionSettings,
   saveProfileWithPassword,
   saveUnlockedProfile,
   unlockVault
 } from "../lib/storage"
+import { recognizeFieldsWithApi } from "../lib/ai-recognition"
 import { MessageType } from "../lib/messages"
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+const restrictStorageAccess = async () => {
+  await Promise.allSettled([
+    chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
+    chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
+  ])
+}
+
+void restrictStorageAccess()
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   ;(async () => {
     try {
+      const isExtensionPage = sender.url?.startsWith(chrome.runtime.getURL("")) ?? false
+
       switch (message?.type) {
         case MessageType.GET_VAULT_STATUS:
           sendResponse(await getVaultStatus())
@@ -43,6 +57,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           await clearVault()
           sendResponse({ ok: true })
           return
+        case MessageType.GET_AI_SETTINGS:
+          if (!isExtensionPage) {
+            sendResponse({ ok: false, error: "FORBIDDEN" })
+            return
+          }
+          sendResponse({ ok: true, settings: await getAiRecognitionSettings() })
+          return
+        case MessageType.SAVE_AI_SETTINGS:
+          if (!isExtensionPage) {
+            sendResponse({ ok: false, error: "FORBIDDEN" })
+            return
+          }
+          await saveAiRecognitionSettings(message.settings)
+          sendResponse({ ok: true })
+          return
+        case MessageType.AI_MATCH_FIELDS: {
+          const profile = await getUnlockedProfile()
+          if (!profile) {
+            sendResponse({ ok: false, matches: [], error: "LOCKED" })
+            return
+          }
+
+          sendResponse({
+            ok: true,
+            matches: await recognizeFieldsWithApi({
+              fields: message.fields ?? [],
+              profile,
+              settings: await getAiRecognitionSettings()
+            })
+          })
+          return
+        }
         default:
           sendResponse({ ok: false, error: "UNKNOWN_MESSAGE" })
       }

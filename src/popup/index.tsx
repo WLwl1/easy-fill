@@ -176,7 +176,8 @@ function IndexPopup() {
                     </div>
                     <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>{item.match.valuePreview}</div>
                     <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
-                      {item.match.reason[0] ?? "规则匹配"}
+                      {item.match.source === "api" ? "API 智能识别" : "规则匹配"}：
+                      {item.match.reason[0] ?? "命中字段"}
                     </div>
                     <button
                       onClick={() => void fillSingle(item)}

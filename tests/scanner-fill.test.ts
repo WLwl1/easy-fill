@@ -1,4 +1,4 @@
-import { fillElementValue } from "../src/lib/fill"
+import { fillElementValue, fillRecommendedMatches } from "../src/lib/fill"
 import { scanFields } from "../src/lib/scanner"
 
 describe("scanner and fill", () => {
@@ -17,6 +17,25 @@ describe("scanner and fill", () => {
     expect(fields[0].labelText).toBe("姓名")
   })
 
+  it("keeps field IDs stable and unique when dynamic fields are inserted", () => {
+    document.body.innerHTML = `
+      <input name="first" data-easy-fill-id="page-controlled" />
+      <input name="second" data-easy-fill-id="page-controlled" />
+    `
+
+    const firstScan = scanFields(document)
+    const inserted = document.createElement("input")
+    inserted.name = "inserted"
+    document.body.prepend(inserted)
+    const secondScan = scanFields(document)
+
+    expect(new Set(firstScan.map((field) => field.id)).size).toBe(2)
+    expect(secondScan.find((field) => field.nameAttr === "first")?.id).toBe(firstScan[0].id)
+    expect(secondScan.find((field) => field.nameAttr === "second")?.id).toBe(firstScan[1].id)
+    expect(new Set(secondScan.map((field) => field.id)).size).toBe(3)
+    expect(secondScan.some((field) => field.id === "page-controlled")).toBe(false)
+  })
+
   it("finds inputs labelled by aria-labelledby", () => {
     document.body.innerHTML = `
       <form>
@@ -28,6 +47,25 @@ describe("scanner and fill", () => {
     const fields = scanFields(document)
     expect(fields).toHaveLength(1)
     expect(fields[0].labelText).toBe("电子邮箱")
+  })
+
+  it("finds labels from component library form items", () => {
+    document.body.innerHTML = `
+      <form>
+        <div class="ant-form-item">
+          <div class="ant-form-item-label">
+            <label title="毕业院校">毕业院校</label>
+          </div>
+          <div class="ant-form-item-control">
+            <input id="school" />
+          </div>
+        </div>
+      </form>
+    `
+
+    const fields = scanFields(document)
+    expect(fields).toHaveLength(1)
+    expect(fields[0].labelText).toBe("毕业院校")
   })
 
   it("fills input values and dispatches events", async () => {
@@ -64,6 +102,30 @@ describe("scanner and fill", () => {
     expect(select.value).toBe("undergraduate")
   })
 
+  it("reports failed fills as skipped", async () => {
+    document.body.innerHTML = `
+      <label for="degree">学历</label>
+      <select id="degree"><option value="undergraduate">本科</option></select>
+    `
+    const [field] = scanFields(document)
+
+    const summary = await fillRecommendedMatches([
+      {
+        field,
+        match: {
+          fieldId: field.id,
+          matchedProfilePath: "education.degree",
+          confidence: 1,
+          reason: [],
+          valuePreview: "博士",
+          requiresConfirmation: false
+        }
+      }
+    ])
+
+    expect(summary).toEqual({ filledCount: 0, skippedCount: 1 })
+  })
+
   it("scans same-origin iframe fields", () => {
     document.body.innerHTML = `<iframe id="child-frame"></iframe>`
     const frame = document.querySelector("iframe")!
@@ -81,6 +143,26 @@ describe("scanner and fill", () => {
     const fields = scanFields(document)
     expect(fields).toHaveLength(1)
     expect(fields[0].labelText).toBe("专业")
+  })
+
+  it("scans and fills fields inside open shadow roots", async () => {
+    document.body.innerHTML = `<div id="host"></div>`
+    const host = document.querySelector<HTMLElement>("#host")!
+    const shadowRoot = host.attachShadow({ mode: "open" })
+    shadowRoot.innerHTML = `
+      <label for="github">GitHub</label>
+      <input id="github" type="url" />
+    `
+
+    const fields = scanFields(document)
+    expect(fields).toHaveLength(1)
+    expect(fields[0].labelText).toBe("GitHub")
+
+    const result = await fillElementValue(fields[0].id, "https://github.com/example")
+    const input = shadowRoot.querySelector<HTMLInputElement>("#github")!
+
+    expect(result).toBe(true)
+    expect(input.value).toBe("https://github.com/example")
   })
 
   it("keeps readonly combobox-style inputs for scanning", () => {
@@ -250,6 +332,45 @@ describe("scanner and fill", () => {
 
     expect(result).toBe(true)
     expect(input.value).toBe("男")
+    expect(menu.style.display).toBe("none")
+  })
+
+  it("searches custom dropdowns before selecting remote options", async () => {
+    document.body.innerHTML = `
+      <div class="ant-select ant-select-show-search">
+        <label for="school">学校</label>
+        <input id="school" role="combobox" aria-haspopup="listbox" />
+      </div>
+      <div id="menu" style="display:none;"></div>
+    `
+
+    const input = document.querySelector<HTMLInputElement>("#school")!
+    const menu = document.querySelector<HTMLElement>("#menu")!
+    input.addEventListener("input", () => {
+      if (input.value === "清华大学") {
+        menu.style.display = "block"
+        menu.innerHTML = `
+          <div class="ant-select-item-option" role="option">
+            <div class="ant-select-item-option-content">清华大学</div>
+          </div>
+        `
+      }
+    })
+    menu.addEventListener("click", (event) => {
+      const option = (event.target as HTMLElement).closest<HTMLElement>("[role='option']")
+      if (!option) {
+        return
+      }
+
+      input.value = option.textContent?.trim() ?? ""
+      menu.style.display = "none"
+    })
+
+    const [field] = scanFields(document)
+    const result = await fillElementValue(field.id, "清华大学")
+
+    expect(result).toBe(true)
+    expect(input.value).toBe("清华大学")
     expect(menu.style.display).toBe("none")
   })
 })

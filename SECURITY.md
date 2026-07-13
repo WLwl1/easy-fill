@@ -20,9 +20,14 @@ Useful reports include:
 ## Security model
 
 - Profile data is encrypted before being stored in browser extension storage.
-- The extension does not use a hosted backend or analytics pipeline.
-- Matching and filling logic run locally.
+- The master password is kept only in the extension background worker memory after unlock. It is not written to local or session extension storage.
+- The extension does not use a project-hosted backend or analytics pipeline.
+- Matching and filling logic run locally by default.
+- Optional API recognition is disabled by default. When enabled, it sends page field metadata and available profile field names/aliases to the configured OpenAI-compatible endpoint, but not stored profile values such as names, phone numbers, email addresses, or addresses.
+- The optional API key is stored in browser extension local storage and is used only by the background worker for recognition requests.
+- Extension storage is restricted to trusted extension pages, and profile previews are rendered inside a closed Shadow DOM so page scripts cannot read them.
 - The scanner intentionally ignores passwords, verification codes, payment fields, bank-card fields, and similar high-risk inputs.
+- Third-party contact fields, such as emergency contacts, are kept out of one-click autofill and require manual confirmation.
 
 ## Responsible disclosure
 

@@ -13,7 +13,35 @@ const signalWeights = {
   sectionTitle: 10
 } as const
 
-const buildDefinitions = (profile: Profile): FieldDefinition[] => [
+const SELF_PROFILE_PATHS = new Set([
+  "basic.name",
+  "basic.phone",
+  "basic.email",
+  "basic.wechat",
+  "basic.address"
+])
+
+const THIRD_PARTY_CONTEXT_ALIASES = [
+  "紧急联系人",
+  "联系人姓名",
+  "联系人电话",
+  "父亲",
+  "母亲",
+  "父母",
+  "家长",
+  "监护人",
+  "推荐人",
+  "介绍人",
+  "担保人",
+  "contact person",
+  "emergency contact",
+  "parent",
+  "guardian",
+  "referee",
+  "reference"
+]
+
+export const buildFieldDefinitions = (profile: Profile): FieldDefinition[] => [
   ...FIELD_DEFINITIONS,
   ...profile.custom.map((item) => ({
     path: `custom:${item.key}`,
@@ -21,6 +49,55 @@ const buildDefinitions = (profile: Profile): FieldDefinition[] => [
     aliases: [item.label, item.key, ...(item.aliases ?? [])]
   }))
 ]
+
+const fieldSignals = (field: FieldCandidate) =>
+  [
+    field.labelText,
+    field.placeholder,
+    field.nameAttr,
+    field.idAttr,
+    field.ariaLabel,
+    field.sectionTitle,
+    ...(field.nearbyText ?? [])
+  ].filter(Boolean) as string[]
+
+export const isThirdPartyContext = (field: FieldCandidate) =>
+  fieldSignals(field).some((signal) =>
+    THIRD_PARTY_CONTEXT_ALIASES.some((alias) => includesAlias(signal, alias))
+  )
+
+export const requiresManualConfirmation = (
+  field: FieldCandidate,
+  matchedProfilePath: string | undefined,
+  confidence: number
+) =>
+  !matchedProfilePath ||
+  confidence < 0.72 ||
+  (SELF_PROFILE_PATHS.has(matchedProfilePath) && isThirdPartyContext(field))
+
+export const buildMatchResult = ({
+  field,
+  profile,
+  matchedProfilePath,
+  confidence,
+  reason,
+  source = "rules"
+}: {
+  field: FieldCandidate
+  profile: Profile
+  matchedProfilePath?: string
+  confidence: number
+  reason: string[]
+  source?: MatchResult["source"]
+}): MatchResult => ({
+  fieldId: field.id,
+  matchedProfilePath,
+  confidence,
+  reason,
+  valuePreview: matchedProfilePath ? getProfileValue(profile, matchedProfilePath) : undefined,
+  requiresConfirmation: requiresManualConfirmation(field, matchedProfilePath, confidence),
+  source
+})
 
 const scoreDefinition = (field: FieldCandidate, definition: FieldDefinition) => {
   let score = 0
@@ -73,11 +150,16 @@ const scoreDefinition = (field: FieldCandidate, definition: FieldDefinition) => 
     reason.push("区块上下文支持该字段")
   }
 
+  if (SELF_PROFILE_PATHS.has(definition.path) && isThirdPartyContext(field)) {
+    score = Math.min(score, 60)
+    reason.push("疑似第三方联系人字段，需要手动确认")
+  }
+
   return { score, reason }
 }
 
 export const matchFields = (fields: FieldCandidate[], profile: Profile): MatchResult[] => {
-  const definitions = buildDefinitions(profile)
+  const definitions = buildFieldDefinitions(profile)
 
   return fields.map((field) => {
     let bestDefinition: FieldDefinition | undefined
@@ -99,18 +181,14 @@ export const matchFields = (fields: FieldCandidate[], profile: Profile): MatchRe
     })
 
     const confidence = Math.min(1, bestScore / 100)
-    const valuePreview = bestDefinition
-      ? getProfileValue(profile, bestDefinition.path)
-      : undefined
-
-    return {
-      fieldId: field.id,
+    return buildMatchResult({
+      field,
+      profile,
       matchedProfilePath: bestDefinition?.path,
       confidence,
       reason: bestReason,
-      valuePreview,
-      requiresConfirmation: !bestDefinition || confidence < 0.72
-    }
+      source: "rules"
+    })
   })
 }
 

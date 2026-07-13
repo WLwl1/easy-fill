@@ -10,7 +10,49 @@ const escapeSelector = (value: string) => {
   return value.replace(/(["\\])/g, "\\$1")
 }
 
+const fieldIdPrefix = `ef-${Date.now().toString(36)}-${Math.random()
+  .toString(36)
+  .slice(2, 8)}`
+const fieldIds = new WeakMap<HTMLElement, string>()
+let nextFieldId = 0
+
+const getOrCreateFieldId = (element: HTMLElement) => {
+  let fieldId = fieldIds.get(element)
+  if (!fieldId) {
+    nextFieldId += 1
+    fieldId = `${fieldIdPrefix}-${nextFieldId}`
+    fieldIds.set(element, fieldId)
+  }
+
+  // Never trust a page-provided data attribute: duplicate IDs can target the wrong field.
+  element.dataset.easyFillId = fieldId
+  return fieldId
+}
+
 const getDocumentWindow = (documentNode: Document) => documentNode.defaultView ?? window
+
+const FORM_ITEM_SELECTOR = [
+  ".ant-form-item",
+  ".el-form-item",
+  ".arco-form-item",
+  ".ivu-form-item",
+  ".t-form__item",
+  ".semi-form-field",
+  ".form-item",
+  ".form-group",
+  ".field"
+].join(", ")
+
+const FORM_LABEL_SELECTOR = [
+  ".ant-form-item-label label",
+  ".el-form-item__label",
+  ".arco-form-label-item",
+  ".ivu-form-item-label",
+  ".t-form__label",
+  ".semi-form-field-label",
+  ".form-label",
+  ".control-label"
+].join(", ")
 
 const collectDocuments = (root: Document = document, visited = new Set<Document>()) => {
   if (visited.has(root)) {
@@ -35,16 +77,54 @@ const collectDocuments = (root: Document = document, visited = new Set<Document>
   return documents
 }
 
+const collectFieldRoots = (root: Document) => {
+  const roots: Array<Document | ShadowRoot> = [root]
+
+  for (let index = 0; index < roots.length; index += 1) {
+    const currentRoot = roots[index]
+    currentRoot.querySelectorAll<HTMLElement>("*").forEach((element) => {
+      if (element.shadowRoot && !roots.includes(element.shadowRoot)) {
+        roots.push(element.shadowRoot)
+      }
+    })
+  }
+
+  return roots
+}
+
 const isElementVisible = (element: HTMLElement) => {
-  const style = getDocumentWindow(element.ownerDocument).getComputedStyle(element)
-  return style.display !== "none" && style.visibility !== "hidden"
+  const view = getDocumentWindow(element.ownerDocument)
+  let current: HTMLElement | null = element
+
+  while (current) {
+    const style = view.getComputedStyle(current)
+    if (
+      current.hidden ||
+      current.getAttribute("aria-hidden") === "true" ||
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.opacity === "0"
+    ) {
+      return false
+    }
+
+    const root = current.getRootNode()
+    current =
+      current.parentElement ??
+      ("host" in root && root.host instanceof view.HTMLElement ? root.host : null)
+  }
+
+  return true
 }
 
 const findLabelText = (element: HTMLElement) => {
   const documentNode = element.ownerDocument
+  const rootNode = element.getRootNode()
+  const queryRoot: ParentNode =
+    "querySelector" in rootNode ? (rootNode as ParentNode) : documentNode
   const inputId = element.getAttribute("id")
   if (inputId) {
-    const label = documentNode.querySelector(`label[for="${escapeSelector(inputId)}"]`)
+    const label = queryRoot.querySelector(`label[for="${escapeSelector(inputId)}"]`)
     if (label?.textContent?.trim()) {
       return label.textContent.trim()
     }
@@ -54,7 +134,7 @@ const findLabelText = (element: HTMLElement) => {
   if (labelledBy) {
     const text = labelledBy
       .split(/\s+/)
-      .map((id) => documentNode.getElementById(id)?.textContent?.trim())
+      .map((id) => queryRoot.querySelector(`#${escapeSelector(id)}`)?.textContent?.trim())
       .filter(Boolean)
       .join(" ")
 
@@ -68,6 +148,13 @@ const findLabelText = (element: HTMLElement) => {
     return wrappingLabel.textContent.trim()
   }
 
+  const formItem = element.closest(FORM_ITEM_SELECTOR)
+  const componentLabel = formItem?.querySelector(FORM_LABEL_SELECTOR)
+  const componentLabelText = componentLabel?.textContent?.trim()
+  if (componentLabelText) {
+    return componentLabelText
+  }
+
   return undefined
 }
 
@@ -78,7 +165,8 @@ const nearestText = (element: HTMLElement) => {
     element.parentElement?.previousElementSibling,
     element.closest("td")?.previousElementSibling,
     element.closest("tr")?.querySelector("th"),
-    element.closest("fieldset")?.querySelector("legend")
+    element.closest("fieldset")?.querySelector("legend"),
+    element.closest(FORM_ITEM_SELECTOR)?.querySelector(FORM_LABEL_SELECTOR)
   ]
 
   candidates.forEach((node) => {
@@ -119,7 +207,10 @@ const isReadonlyInteractiveField = (
     .filter(Boolean)
     .join(" ")
 
-  const inputType = element instanceof HTMLInputElement ? (element.type || "text").toLowerCase() : "text"
+  const inputType =
+    element.tagName.toLowerCase() === "input"
+      ? ((element as HTMLInputElement).type || "text").toLowerCase()
+      : "text"
   const role = element.getAttribute("role")?.toLowerCase()
   const hasPopup = element.getAttribute("aria-haspopup")?.toLowerCase()
 
@@ -133,8 +224,8 @@ const isReadonlyInteractiveField = (
 }
 
 const shouldIgnoreField = (element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => {
-  if (element instanceof HTMLInputElement) {
-    const type = (element.type || "text").toLowerCase()
+  if (element.tagName.toLowerCase() === "input") {
+    const type = ((element as HTMLInputElement).type || "text").toLowerCase()
     if (["hidden", "password", "file", "checkbox", "radio", "submit", "button"].includes(type)) {
       return true
     }
@@ -145,9 +236,9 @@ const shouldIgnoreField = (element: HTMLInputElement | HTMLTextAreaElement | HTM
   }
 
   if (
-    (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) &&
-    element.readOnly &&
-    !isReadonlyInteractiveField(element)
+    element.tagName.toLowerCase() !== "select" &&
+    (element as HTMLInputElement | HTMLTextAreaElement).readOnly &&
+    !isReadonlyInteractiveField(element as HTMLInputElement | HTMLTextAreaElement)
   ) {
     return true
   }
@@ -172,22 +263,26 @@ const shouldIgnoreField = (element: HTMLInputElement | HTMLTextAreaElement | HTM
 
 export const scanFields = (root: Document = document): FieldCandidate[] => {
   return collectDocuments(root).flatMap((documentNode, documentIndex) => {
-    const elements = Array.from(
-      documentNode.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input, textarea, select"
+    const elements = collectFieldRoots(documentNode).flatMap((fieldRoot) =>
+      Array.from(
+        fieldRoot.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+          "input, textarea, select"
+        )
       )
     )
 
     return elements
       .filter((element) => !shouldIgnoreField(element))
       .map((element, index) => {
-        const fieldId = element.dataset.easyFillId || `ef-field-${documentIndex + 1}-${index + 1}`
-        element.dataset.easyFillId = fieldId
+        const fieldId = getOrCreateFieldId(element)
 
         return {
           id: fieldId,
           tagName: element.tagName.toLowerCase() as FieldCandidate["tagName"],
-          inputType: element instanceof HTMLInputElement ? element.type || "text" : undefined,
+          inputType:
+            element.tagName.toLowerCase() === "input"
+              ? (element as HTMLInputElement).type || "text"
+              : undefined,
           labelText: findLabelText(element),
           placeholder: element.getAttribute("placeholder") ?? undefined,
           nameAttr: element.getAttribute("name") ?? undefined,
@@ -196,8 +291,10 @@ export const scanFields = (root: Document = document): FieldCandidate[] => {
           nearbyText: nearestText(element),
           sectionTitle: findSectionTitle(element),
           options:
-            element instanceof HTMLSelectElement
-              ? Array.from(element.options).map((option) => option.textContent?.trim() ?? "")
+            element.tagName.toLowerCase() === "select"
+              ? Array.from((element as HTMLSelectElement).options).map(
+                  (option) => option.textContent?.trim() ?? ""
+                )
               : undefined,
           required: element.required
         }
@@ -207,12 +304,14 @@ export const scanFields = (root: Document = document): FieldCandidate[] => {
 
 export const getElementByFieldId = (fieldId: string, root: Document = document) => {
   for (const documentNode of collectDocuments(root)) {
-    const found = documentNode.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-      `[data-easy-fill-id="${escapeSelector(fieldId)}"]`
-    )
+    for (const fieldRoot of collectFieldRoots(documentNode)) {
+      const found = fieldRoot.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        `[data-easy-fill-id="${escapeSelector(fieldId)}"]`
+      )
 
-    if (found) {
-      return found
+      if (found) {
+        return found
+      }
     }
   }
 

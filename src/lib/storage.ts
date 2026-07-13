@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from "./constants"
+import { DEFAULT_AI_RECOGNITION_SETTINGS, STORAGE_KEYS } from "./constants"
 import {
   storageLocalGet,
   storageLocalSet,
@@ -7,24 +7,22 @@ import {
   storageSessionSet
 } from "./browser"
 import { decryptProfile, encryptProfile } from "./security"
-import type { Profile, VaultRecord, VaultStatus } from "./types"
+import type { AiRecognitionSettings, Profile, VaultRecord, VaultStatus } from "./types"
 
 let masterPasswordCache: string | null = null
-
-const getSessionPassword = async () =>
-  storageSessionGet<string>(STORAGE_KEYS.sessionPassword)
 
 export const getVaultRecord = async () => storageLocalGet<VaultRecord>(STORAGE_KEYS.vault)
 
 export const getVaultStatus = async (): Promise<VaultStatus> => {
-  const [vault, sessionUnlocked] = await Promise.all([
+  const [vault, sessionUnlocked, sessionProfile] = await Promise.all([
     getVaultRecord(),
-    storageSessionGet<boolean>(STORAGE_KEYS.sessionUnlocked)
+    storageSessionGet<boolean>(STORAGE_KEYS.sessionUnlocked),
+    storageSessionGet<Profile>(STORAGE_KEYS.sessionProfile)
   ])
 
   return {
     hasVault: Boolean(vault),
-    unlocked: Boolean(sessionUnlocked)
+    unlocked: Boolean(sessionUnlocked && sessionProfile)
   }
 }
 
@@ -38,7 +36,6 @@ export const unlockVault = async (password: string) => {
   masterPasswordCache = password
   await storageSessionSet(STORAGE_KEYS.sessionProfile, profile)
   await storageSessionSet(STORAGE_KEYS.sessionUnlocked, true)
-  await storageSessionSet(STORAGE_KEYS.sessionPassword, password)
   return profile
 }
 
@@ -46,7 +43,6 @@ export const lockVault = async () => {
   masterPasswordCache = null
   await storageSessionRemove(STORAGE_KEYS.sessionProfile)
   await storageSessionRemove(STORAGE_KEYS.sessionUnlocked)
-  await storageSessionRemove(STORAGE_KEYS.sessionPassword)
 }
 
 export const getUnlockedProfile = async (): Promise<Profile | null> => {
@@ -64,11 +60,10 @@ export const saveProfileWithPassword = async (profile: Profile, password: string
   await storageLocalSet(STORAGE_KEYS.vault, vault)
   await storageSessionSet(STORAGE_KEYS.sessionProfile, profile)
   await storageSessionSet(STORAGE_KEYS.sessionUnlocked, true)
-  await storageSessionSet(STORAGE_KEYS.sessionPassword, password)
 }
 
 export const saveUnlockedProfile = async (profile: Profile) => {
-  const password = masterPasswordCache ?? (await getSessionPassword())
+  const password = masterPasswordCache
   if (!password) {
     throw new Error("REAUTH_REQUIRED")
   }
@@ -90,5 +85,39 @@ export const clearVault = async () => {
   await chrome.storage.local.remove([STORAGE_KEYS.vault])
   await storageSessionRemove(STORAGE_KEYS.sessionProfile)
   await storageSessionRemove(STORAGE_KEYS.sessionUnlocked)
-  await storageSessionRemove(STORAGE_KEYS.sessionPassword)
+}
+
+export const getAiRecognitionSettings = async (): Promise<AiRecognitionSettings> => {
+  const stored = await storageLocalGet<Partial<AiRecognitionSettings>>(STORAGE_KEYS.aiSettings)
+
+  return {
+    ...DEFAULT_AI_RECOGNITION_SETTINGS,
+    ...stored,
+    apiKey: stored?.apiKey ?? DEFAULT_AI_RECOGNITION_SETTINGS.apiKey
+  }
+}
+
+export const saveAiRecognitionSettings = async (settings: AiRecognitionSettings) => {
+  const endpoint = settings.endpoint.trim()
+  if (endpoint) {
+    let parsedEndpoint: URL
+    try {
+      parsedEndpoint = new URL(endpoint)
+    } catch {
+      throw new Error("AI_RECOGNITION_INVALID_ENDPOINT")
+    }
+
+    if (!["http:", "https:"].includes(parsedEndpoint.protocol)) {
+      throw new Error("AI_RECOGNITION_INVALID_ENDPOINT")
+    }
+  }
+
+  const requestedTimeout = settings.timeoutMs ?? DEFAULT_AI_RECOGNITION_SETTINGS.timeoutMs
+  await storageLocalSet<AiRecognitionSettings>(STORAGE_KEYS.aiSettings, {
+    enabled: Boolean(settings.enabled),
+    endpoint,
+    model: settings.model.trim(),
+    apiKey: settings.apiKey?.trim(),
+    timeoutMs: Math.min(60_000, Math.max(1_000, requestedTimeout))
+  })
 }

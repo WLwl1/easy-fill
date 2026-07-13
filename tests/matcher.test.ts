@@ -85,4 +85,22 @@ describe("field matching", () => {
     expect(matches[0].matchedProfilePath).toBe("education.degree")
     expect(matches[0].requiresConfirmation).toBe(true)
   })
+
+  it("requires confirmation for third-party contact fields", () => {
+    const fields: FieldCandidate[] = [
+      {
+        id: "field-emergency-phone",
+        tagName: "input",
+        labelText: "紧急联系人电话",
+        inputType: "tel"
+      }
+    ]
+
+    const [match] = matchFields(fields, profile)
+
+    expect(match.matchedProfilePath).toBe("basic.phone")
+    expect(match.confidence).toBeLessThan(0.72)
+    expect(match.requiresConfirmation).toBe(true)
+    expect(match.reason).toContain("疑似第三方联系人字段，需要手动确认")
+  })
 })

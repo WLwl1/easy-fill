@@ -2,7 +2,7 @@ import { type CSSProperties, useEffect, useState } from "react"
 import { EMPTY_PROFILE } from "../lib/constants"
 import { MessageType } from "../lib/messages"
 import { cloneProfile, profileHasAnyValue } from "../lib/profile"
-import type { Profile, VaultStatus } from "../lib/types"
+import type { AiRecognitionSettings, Profile, VaultStatus } from "../lib/types"
 
 const pageStyle: CSSProperties = {
   minHeight: "100vh",
@@ -80,6 +80,7 @@ function OptionsPage() {
   const [profile, setProfile] = useState<Profile>(cloneProfile(EMPTY_PROFILE))
   const [password, setPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
+  const [aiSettings, setAiSettings] = useState<AiRecognitionSettings | null>(null)
   const [message, setMessage] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const canEditProfile = !status?.hasVault || Boolean(status?.unlocked)
@@ -98,6 +99,11 @@ function OptionsPage() {
     } else {
       setProfile(cloneProfile(EMPTY_PROFILE))
     }
+
+    const aiResponse = await chrome.runtime.sendMessage({
+      type: MessageType.GET_AI_SETTINGS
+    })
+    setAiSettings(aiResponse.settings)
   }
 
   useEffect(() => {
@@ -218,6 +224,24 @@ function OptionsPage() {
         aliases: []
       })
     })
+  }
+
+  const saveAiSettings = async () => {
+    if (!aiSettings) {
+      return
+    }
+
+    if (aiSettings.enabled && (!aiSettings.endpoint.trim() || !aiSettings.model.trim())) {
+      setMessage("请先填写 API endpoint 和模型名称。")
+      return
+    }
+
+    const response = await chrome.runtime.sendMessage({
+      type: MessageType.SAVE_AI_SETTINGS,
+      settings: aiSettings
+    })
+
+    setMessage(response?.ok ? "智能识别 API 设置已保存。" : "智能识别 API 设置保存失败。")
   }
 
   return (
@@ -426,6 +450,81 @@ function OptionsPage() {
               }}>
               资料库当前处于锁定状态。先解锁，再编辑和保存资料，避免输入内容在解锁后被已保存的数据覆盖。
             </div>
+          )}
+        </div>
+
+        <div style={cardStyle}>
+          <h2 style={{ marginTop: 0, fontSize: 18 }}>智能识别 API</h2>
+          {aiSettings ? (
+            <div style={{ display: "grid", gap: 14, maxWidth: 760 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={aiSettings.enabled}
+                  onChange={(event) =>
+                    setAiSettings((current) =>
+                      current ? { ...current, enabled: event.target.checked } : current
+                    )
+                  }
+                />
+                启用 API 智能字段识别
+              </label>
+
+              <div style={sectionGridStyle}>
+                <Field
+                  label="API endpoint"
+                  value={aiSettings.endpoint}
+                  onChange={(value) =>
+                    setAiSettings((current) => (current ? { ...current, endpoint: value } : current))
+                  }
+                />
+                <Field
+                  label="模型"
+                  value={aiSettings.model}
+                  onChange={(value) =>
+                    setAiSettings((current) => (current ? { ...current, model: value } : current))
+                  }
+                />
+                <Field
+                  label="API key（本地服务可留空）"
+                  value={aiSettings.apiKey}
+                  onChange={(value) =>
+                    setAiSettings((current) => (current ? { ...current, apiKey: value } : current))
+                  }
+                  type="password"
+                />
+                <Field
+                  label="超时毫秒"
+                  type="number"
+                  value={String(aiSettings.timeoutMs ?? 8000)}
+                  onChange={(value) =>
+                    setAiSettings((current) =>
+                      current ? { ...current, timeoutMs: Number(value) || 8000 } : current
+                    )
+                  }
+                />
+              </div>
+
+              <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7 }}>
+                API 只接收页面字段文本、选项和可用资料字段名称，不发送已保存的姓名、手机号、邮箱等真实值。API key 会保存在扩展本地存储中，仅由后台脚本调用。
+              </div>
+
+              <button
+                onClick={() => void saveAiSettings()}
+                style={{
+                  border: "none",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  borderRadius: 6,
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                  width: "fit-content"
+                }}>
+                保存智能识别设置
+              </button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: "#475569" }}>正在读取智能识别设置...</div>
           )}
         </div>
 

@@ -3,34 +3,55 @@ import { getElementByFieldId } from "./scanner"
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
 
+const getElementWindow = (element: Element) => element.ownerDocument.defaultView ?? window
+
 const dispatchPointerClick = (element: HTMLElement) => {
-  element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))
-  element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }))
-  element.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+  const view = getElementWindow(element)
+  element.dispatchEvent(new view.MouseEvent("mousedown", { bubbles: true }))
+  element.dispatchEvent(new view.MouseEvent("mouseup", { bubbles: true }))
+  element.dispatchEvent(new view.MouseEvent("click", { bubbles: true }))
 }
 
 const dispatchValueEvents = (element: Element) => {
+  const view = getElementWindow(element)
   const beforeInputEvent =
-    typeof InputEvent === "function"
-      ? new InputEvent("beforeinput", {
+    typeof view.InputEvent === "function"
+      ? new view.InputEvent("beforeinput", {
           bubbles: true,
           cancelable: true,
           inputType: "insertText",
           data: null
         })
-      : new Event("beforeinput", { bubbles: true, cancelable: true })
+      : new view.Event("beforeinput", { bubbles: true, cancelable: true })
 
   element.dispatchEvent(beforeInputEvent)
-  element.dispatchEvent(new Event("input", { bubbles: true }))
-  element.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter" }))
-  element.dispatchEvent(new Event("change", { bubbles: true }))
-  element.dispatchEvent(new Event("blur", { bubbles: true }))
+  element.dispatchEvent(new view.Event("input", { bubbles: true }))
+  element.dispatchEvent(new view.KeyboardEvent("keyup", { bubbles: true, key: "Enter" }))
+  element.dispatchEvent(new view.Event("change", { bubbles: true }))
+  element.dispatchEvent(new view.Event("blur", { bubbles: true }))
+}
+
+const dispatchSearchInputEvents = (element: Element) => {
+  const view = getElementWindow(element)
+  const beforeInputEvent =
+    typeof view.InputEvent === "function"
+      ? new view.InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          inputType: "insertText",
+          data: null
+        })
+      : new view.Event("beforeinput", { bubbles: true, cancelable: true })
+
+  element.dispatchEvent(beforeInputEvent)
+  element.dispatchEvent(new view.Event("input", { bubbles: true }))
+  element.dispatchEvent(new view.KeyboardEvent("keyup", { bubbles: true, key: "Enter" }))
 }
 
 const getPrototypeValueSetter = (element: HTMLInputElement | HTMLTextAreaElement) => {
   const view = element.ownerDocument.defaultView ?? window
   const prototype =
-    element instanceof view.HTMLTextAreaElement
+    element.tagName.toLowerCase() === "textarea"
       ? view.HTMLTextAreaElement.prototype
       : view.HTMLInputElement.prototype
 
@@ -38,11 +59,11 @@ const getPrototypeValueSetter = (element: HTMLInputElement | HTMLTextAreaElement
 }
 
 const isVisible = (element: Element) => {
-  if (!(element instanceof HTMLElement)) {
+  const view = getElementWindow(element)
+  if (!(element instanceof view.HTMLElement)) {
     return false
   }
 
-  const view = element.ownerDocument.defaultView ?? window
   const style = view.getComputedStyle(element)
   return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0"
 }
@@ -97,7 +118,7 @@ const buildDateVariants = (value: string) => {
 
 const isDateLikeField = (element: HTMLInputElement | HTMLTextAreaElement) => {
   const inputType =
-    element instanceof HTMLInputElement ? (element.type || "text").toLowerCase() : "text"
+    element.tagName.toLowerCase() === "input" ? (element.type || "text").toLowerCase() : "text"
   const signals = [
     element.getAttribute("role"),
     element.getAttribute("aria-label"),
@@ -135,6 +156,15 @@ const clickTargetForCustomSelect = (element: HTMLInputElement | HTMLTextAreaElem
     ".el-select, .ant-select, .arco-select, .ivu-select, .t-select, [role='combobox']"
   ) ?? element
 
+const findCustomSelectSearchInput = (element: HTMLInputElement | HTMLTextAreaElement) => {
+  const clickTarget = clickTargetForCustomSelect(element)
+  return (
+    clickTarget.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      "input:not([type='hidden']), textarea"
+    ) ?? element
+  )
+}
+
 const findCustomOption = (documentNode: Document, value: string) => {
   const normalizedValue = normalizeOptionText(value)
   const selectors = [
@@ -164,7 +194,7 @@ const findCustomOption = (documentNode: Document, value: string) => {
 
   return candidates.find((candidate) => {
     const text = normalizeOptionText(candidate.textContent ?? "")
-    return text.includes(normalizedValue) || normalizedValue.includes(text)
+    return Boolean(text) && (text.includes(normalizedValue) || normalizedValue.includes(text))
   })
 }
 
@@ -178,10 +208,49 @@ const attemptCustomOptionSelection = async (
 
   const clickTarget = clickTargetForCustomSelect(element)
   clickTarget.focus()
-  clickTarget.click()
   dispatchPointerClick(clickTarget)
 
-  for (const delay of [0, 60, 160]) {
+  const selectVisibleOption = async (delays: number[]) => {
+    for (const delay of delays) {
+      if (delay > 0) {
+        await wait(delay)
+      }
+
+      const option = findCustomOption(element.ownerDocument, value)
+      if (!option) {
+        continue
+      }
+
+      option.scrollIntoView?.({ block: "nearest" })
+      dispatchPointerClick(option)
+      await wait(30)
+      return true
+    }
+
+    return false
+  }
+
+  if (await selectVisibleOption([0, 60, 160])) {
+    return true
+  }
+
+  const searchInput = findCustomSelectSearchInput(element)
+  const setter = getPrototypeValueSetter(searchInput)
+  searchInput.focus()
+  setter?.call(searchInput, value)
+  if (searchInput.value !== value) {
+    searchInput.value = value
+  }
+  searchInput.setAttribute("value", value)
+  dispatchSearchInputEvents(searchInput)
+  searchInput.dispatchEvent(
+    new (getElementWindow(searchInput).KeyboardEvent)("keydown", {
+      bubbles: true,
+      key: "Enter"
+    })
+  )
+
+  for (const delay of [80, 180, 320]) {
     if (delay > 0) {
       await wait(delay)
     }
@@ -192,7 +261,6 @@ const attemptCustomOptionSelection = async (
     }
 
     option.scrollIntoView?.({ block: "nearest" })
-    option.click()
     dispatchPointerClick(option)
     await wait(30)
     return true
@@ -260,7 +328,6 @@ const attemptCalendarDayCommit = async (
     }
 
     dayCell.scrollIntoView?.({ block: "nearest" })
-    dayCell.click()
     dispatchPointerClick(dayCell)
     await wait(40)
     return true
@@ -282,7 +349,6 @@ const attemptDateLikeFill = async (
   const previousAriaReadonly = element.getAttribute("aria-readonly")
 
   element.focus()
-  element.click()
   dispatchPointerClick(element)
 
   if (previousReadonly) {
@@ -335,9 +401,10 @@ export const fillElementValue = async (fieldId: string, value: string) => {
     return false
   }
 
-  if (element instanceof HTMLSelectElement) {
+  if (element.tagName.toLowerCase() === "select") {
+    const select = element as HTMLSelectElement
     const normalizedValue = value.trim().toLowerCase()
-    const matchingOption = Array.from(element.options).find((option) => {
+    const matchingOption = Array.from(select.options).find((option) => {
       const optionText = option.textContent?.trim().toLowerCase()
       return option.value.toLowerCase() === normalizedValue || optionText === normalizedValue
     })
@@ -346,31 +413,32 @@ export const fillElementValue = async (fieldId: string, value: string) => {
       return false
     }
 
-    element.value = matchingOption.value
-    dispatchValueEvents(element)
+    select.value = matchingOption.value
+    dispatchValueEvents(select)
     return true
   }
 
+  const textElement = element as HTMLInputElement | HTMLTextAreaElement
   const normalizedValue = value ?? ""
 
-  if (await attemptDateLikeFill(element, normalizedValue)) {
+  if (await attemptDateLikeFill(textElement, normalizedValue)) {
     return true
   }
 
-  if (await attemptCustomOptionSelection(element, normalizedValue)) {
+  if (await attemptCustomOptionSelection(textElement, normalizedValue)) {
     return true
   }
 
-  const setter = getPrototypeValueSetter(element)
-  element.focus()
-  element.click()
-  setter?.call(element, normalizedValue)
-  if (element.value !== normalizedValue) {
-    element.value = normalizedValue
+  const setter = getPrototypeValueSetter(textElement)
+  textElement.focus()
+  textElement.click()
+  setter?.call(textElement, normalizedValue)
+  if (textElement.value !== normalizedValue) {
+    textElement.value = normalizedValue
   }
-  element.setAttribute("value", normalizedValue)
-  dispatchValueEvents(element)
-  return element.value === normalizedValue
+  textElement.setAttribute("value", normalizedValue)
+  dispatchValueEvents(textElement)
+  return textElement.value === normalizedValue
 }
 
 export const fillRecommendedMatches = async (
@@ -381,6 +449,7 @@ export const fillRecommendedMatches = async (
 
   for (const { match } of matches) {
     if (!match.matchedProfilePath || !match.valuePreview) {
+      skippedCount += 1
       continue
     }
 
@@ -391,6 +460,8 @@ export const fillRecommendedMatches = async (
 
     if (await fillElementValue(match.fieldId, match.valuePreview)) {
       filledCount += 1
+    } else {
+      skippedCount += 1
     }
   }
 

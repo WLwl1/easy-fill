@@ -134,6 +134,56 @@
         font-size: 14px;
       }
 
+      .component-form {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .ant-form-item,
+      .el-form-item {
+        display: grid;
+        gap: 6px;
+      }
+
+      .ant-form-item-label label,
+      .el-form-item__label {
+        color: #334155;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .ant-select {
+        position: relative;
+      }
+
+      .ant-select-dropdown {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 3;
+        border: 1px solid #bdc9d9;
+        border-radius: 7px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(23, 32, 51, 0.14);
+        overflow: hidden;
+      }
+
+      .ant-select-dropdown[aria-hidden="false"] {
+        display: block;
+      }
+
+      .ant-select-item-option {
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+
+      .ant-select-item-option:hover {
+        background: #edf5ff;
+      }
+
       @media (max-width: 840px) {
         .grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -268,6 +318,49 @@
         </section>
 
         <section>
+          <h2>组件化表单兼容性</h2>
+          <p style="margin-top: 8px;">模拟 Ant Design / Element Plus 常见结构，用于测试非原生 label、搜索下拉和第三方联系人字段。</p>
+          <div class="component-form">
+            <div class="ant-form-item">
+              <div class="ant-form-item-label">
+                <label title="毕业院校">毕业院校</label>
+              </div>
+              <div class="ant-form-item-control">
+                <div class="ant-select ant-select-show-search">
+                  <input name="component_school" role="combobox" aria-haspopup="listbox" placeholder="输入学校名称搜索">
+                  <div class="ant-select-dropdown" aria-hidden="true">
+                    <div class="ant-select-item-option" role="option">
+                      <div class="ant-select-item-option-content">清华大学</div>
+                    </div>
+                    <div class="ant-select-item-option" role="option">
+                      <div class="ant-select-item-option-content">北京大学</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="el-form-item">
+              <div class="el-form-item__label">专业名称</div>
+              <div class="el-form-item__content">
+                <input name="component_major" placeholder="Element Plus 风格字段">
+              </div>
+            </div>
+
+            <div class="grid" style="margin-top: 0;">
+              <label>
+                紧急联系人姓名
+                <input name="emergency_contact_name" placeholder="应要求手动确认，不应一键填本人姓名">
+              </label>
+              <label>
+                紧急联系人电话
+                <input type="tel" name="emergency_contact_phone" placeholder="应要求手动确认，不应一键填本人电话">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section>
           <h2>安全字段</h2>
           <div class="grid">
             <label>
@@ -308,7 +401,9 @@
         github: "https://github.com/example",
         homepage: "https://example.com",
         linkedin: "https://linkedin.com/in/example",
-        research_interest: "系统安全、浏览器扩展与隐私保护工具。"
+        research_interest: "系统安全、浏览器扩展与隐私保护工具。",
+        component_school: "清华大学",
+        component_major: "软件工程"
       }
 
       const form = document.querySelector("#application-form")
@@ -326,6 +421,29 @@
 
       document.querySelector("#clear").addEventListener("click", () => {
         form.reset()
+      })
+
+      const componentSchool = form.querySelector("[name='component_school']")
+      const componentDropdown = document.querySelector(".ant-select-dropdown")
+
+      componentSchool.addEventListener("focus", () => {
+        componentDropdown.setAttribute("aria-hidden", "false")
+      })
+
+      componentSchool.addEventListener("input", () => {
+        componentDropdown.setAttribute("aria-hidden", "false")
+      })
+
+      componentDropdown.addEventListener("click", (event) => {
+        const option = event.target.closest("[role='option']")
+        if (!option) {
+          return
+        }
+
+        componentSchool.value = option.textContent.trim()
+        componentSchool.dispatchEvent(new Event("input", { bubbles: true }))
+        componentSchool.dispatchEvent(new Event("change", { bubbles: true }))
+        componentDropdown.setAttribute("aria-hidden", "true")
       })
     </script>
   </body>

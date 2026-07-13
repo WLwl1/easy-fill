@@ -16,7 +16,7 @@
 
 Easy Fill is a privacy-first browser extension for repetitive Chinese application forms. It helps students and job seekers save profile information locally, detect web form fields, match them with deterministic heuristics, and fill them with one click.
 
-The core value is simple: Chinese application forms, local privacy, no AI dependency, and no backend.
+The core value is simple: Chinese application forms, local privacy, local rule-based matching by default, and optional OpenAI-compatible API recognition.
 
 ## Who It Is For
 
@@ -28,10 +28,10 @@ The core value is simple: Chinese application forms, local privacy, no AI depend
 ## Highlights
 
 - Local encrypted profile vault protected by a master password
-- No account system, backend, telemetry, or AI API calls
+- No account system, project-hosted backend, or telemetry; API recognition is disabled by default
 - Works with dynamic pages, modals, and same-origin iframes
 - Supports text fields, native selects, custom dropdowns, and date-like inputs
-- Explainable rule-based matching instead of opaque model decisions
+- Explainable rule-based matching; optional API recognition sends field metadata and available field names, not saved profile values
 - Ignores high-risk fields such as passwords, verification codes, bank cards, CVV, and payment fields
 
 ## Install

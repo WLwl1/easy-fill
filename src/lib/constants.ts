@@ -4,7 +4,15 @@ export const STORAGE_KEYS = {
   vault: "easy-fill:vault",
   sessionProfile: "easy-fill:session-profile",
   sessionUnlocked: "easy-fill:session-unlocked",
-  sessionPassword: "easy-fill:session-password"
+  aiSettings: "easy-fill:ai-settings"
+} as const
+
+export const DEFAULT_AI_RECOGNITION_SETTINGS = {
+  enabled: false,
+  endpoint: "https://api.openai.com/v1/chat/completions",
+  model: "gpt-4.1-mini",
+  apiKey: "",
+  timeoutMs: 8000
 } as const
 
 export const EMPTY_PROFILE: Profile = {

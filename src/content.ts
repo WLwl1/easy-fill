@@ -1,8 +1,11 @@
 import { fillElementValue, fillRecommendedMatches } from "./lib/fill"
+import { mergeApiMatches } from "./lib/ai-recognition"
 import { matchFields } from "./lib/matcher"
 import { MessageType } from "./lib/messages"
-import { scanFields } from "./lib/scanner"
-import type { FieldMatchView, Profile, ScanResponse, VaultStatus } from "./lib/types"
+import { isMutationOwnedBy } from "./lib/mutations"
+import { createPrivateOverlayRoot } from "./lib/overlay"
+import { getElementByFieldId, scanFields } from "./lib/scanner"
+import type { FieldCandidate, FieldMatchView, MatchResult, Profile, ScanResponse, VaultStatus } from "./lib/types"
 
 export const config = {
   matches: ["<all_urls>"],
@@ -10,7 +13,8 @@ export const config = {
 }
 
 let latestMatches: FieldMatchView[] = []
-let overlayRoot: HTMLDivElement | null = null
+let overlayHost: HTMLDivElement | null = null
+let overlayRoot: ShadowRoot | null = null
 let rescanTimer: number | null = null
 let observerStarted = false
 let scanVersion = 0
@@ -23,6 +27,19 @@ const queryProfile = async (): Promise<Profile | null> => {
 
 const queryVaultStatus = async (): Promise<VaultStatus> =>
   chrome.runtime.sendMessage({ type: MessageType.GET_VAULT_STATUS })
+
+const queryApiMatches = async (fields: FieldCandidate[]): Promise<MatchResult[]> => {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: MessageType.AI_MATCH_FIELDS,
+      fields
+    })
+
+    return response?.ok && Array.isArray(response.matches) ? response.matches : []
+  } catch {
+    return []
+  }
+}
 
 const buildScanResponse = async (): Promise<ScanResponse> => {
   const currentVersion = ++scanVersion
@@ -41,7 +58,11 @@ const buildScanResponse = async (): Promise<ScanResponse> => {
     return { ok: false, locked: true, matches: [], totalFields: fields.length }
   }
 
-  const matches = matchFields(fields, profile)
+  const ruleMatches = matchFields(fields, profile)
+  const apiCandidates = fields.filter((_, index) => ruleMatches[index]?.requiresConfirmation)
+  const apiMatches = apiCandidates.length > 0 ? await queryApiMatches(apiCandidates) : []
+  const mergedMatches = mergeApiMatches(ruleMatches, apiMatches)
+  const matches = mergedMatches
     .map((match) => ({
       field: fields.find((field) => field.id === match.fieldId)!,
       match
@@ -89,12 +110,13 @@ const startAutoRescan = () => {
   const observer = new MutationObserver((mutations) => {
     const shouldRescan = mutations.some(
       (mutation) =>
-        mutation.type === "childList" ||
-        (mutation.type === "attributes" &&
-          mutation.target instanceof HTMLElement &&
-          ["style", "class", "open", "hidden", "aria-hidden"].includes(
-            mutation.attributeName ?? ""
-          ))
+        !isMutationOwnedBy(mutation, overlayHost) &&
+        (mutation.type === "childList" ||
+          (mutation.type === "attributes" &&
+            mutation.target instanceof HTMLElement &&
+            ["style", "class", "open", "hidden", "aria-hidden"].includes(
+              mutation.attributeName ?? ""
+            )))
     )
 
     if (shouldRescan) {
@@ -118,13 +140,14 @@ const startAutoRescan = () => {
 }
 
 const ensureOverlayRoot = () => {
-  if (overlayRoot?.isConnected) {
+  if (overlayHost?.isConnected && overlayRoot) {
     return overlayRoot
   }
 
-  overlayRoot = document.createElement("div")
-  overlayRoot.id = "easy-fill-overlay"
-  Object.assign(overlayRoot.style, {
+  const overlay = createPrivateOverlayRoot(document, "easy-fill-overlay")
+  overlayHost = overlay.host
+  overlayRoot = overlay.root
+  Object.assign(overlayHost.style, {
     position: "fixed",
     right: "12px",
     bottom: "12px",
@@ -139,7 +162,7 @@ const ensureOverlayRoot = () => {
     fontFamily: "system-ui, sans-serif",
     color: "#111827"
   })
-  document.body.appendChild(overlayRoot)
+  document.body.appendChild(overlayHost)
   return overlayRoot
 }
 
@@ -329,7 +352,9 @@ const renderOverlay = ({
     reasons.style.color = "#6b7280"
     reasons.style.marginTop = "6px"
     reasons.style.wordBreak = "break-word"
-    reasons.textContent = view.match.reason[0] ?? "规则匹配"
+    reasons.textContent = `${view.match.source === "api" ? "API 智能识别" : "规则匹配"}：${
+      view.match.reason[0] ?? "命中字段"
+    }`
     row.appendChild(reasons)
 
     const actions = document.createElement("div")
@@ -341,12 +366,10 @@ const renderOverlay = ({
 
     actions.appendChild(
       createButton("定位", () => {
-        document
-          .querySelector<HTMLElement>(`[data-easy-fill-id="${view.field.id}"]`)
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "center"
-          })
+        getElementByFieldId(view.field.id)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        })
       })
     )
 

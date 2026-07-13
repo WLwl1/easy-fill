@@ -44,6 +44,14 @@ export type VaultStatus = {
   unlocked: boolean
 }
 
+export type AiRecognitionSettings = {
+  enabled: boolean
+  endpoint: string
+  model: string
+  apiKey?: string
+  timeoutMs?: number
+}
+
 export type FieldCandidate = {
   id: string
   tagName: "input" | "textarea" | "select"
@@ -66,6 +74,7 @@ export type MatchResult = {
   reason: string[]
   valuePreview?: string
   requiresConfirmation: boolean
+  source?: "rules" | "api"
 }
 
 export type FieldMatchView = {
